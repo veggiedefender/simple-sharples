@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sharples {{date}}</title>
+</head>
+<body>
+  <h1>Sharples {{date}}</h1>
+  {{#meals}}
+  <h2>{{title}} ({{short_time}})</h2>
+  <ul>
+    {{#items}}
+    <li>{{.}}</li>
+    {{/items}}
+  </ul>
+  {{/meals}}
+  <p>more info on <a href="https://dash.swarthmore.edu/">the dash</a>.</p>
+</body>
+</html>
