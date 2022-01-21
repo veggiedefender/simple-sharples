@@ -37,10 +37,22 @@ function parseMeal(meal: RawMeal): Meal {
     items: decode(meal.description)
       .split(';')
       .map((item) =>
-        item
-          .trim()
-          .replaceAll('::vegan::', '(v)')
-          .replaceAll('::halal::', '(h)'),
+        item.trim().replace(/::(.*?)::/g, function (dietary) {
+          switch (dietary) {
+            case '::vegan::':
+              return '(v)'
+            case '::vegetarian::':
+              return '(vg)'
+            case '::kosher::':
+              return '(k)'
+            case '::halal::':
+              return '(h)'
+            case '::gluten-free::':
+              return '(gf)'
+            default:
+              return ''
+          }
+        }),
       ),
   }
 }
