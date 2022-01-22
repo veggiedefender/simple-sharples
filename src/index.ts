@@ -20,6 +20,9 @@ type Meal = {
   items: string[]
 }
 
+type Handler = (event: Event) => Promise<Response>
+type Middleware = (handler: Handler) => (event: FetchEvent) => Promise<Response>
+
 function parseMeal(meal: RawMeal): Meal {
   return {
     title: meal.title,
@@ -47,7 +50,7 @@ function parseMeal(meal: RawMeal): Meal {
   }
 }
 
-export async function handleRequest(request: Request): Promise<Response> {
+async function handleRequest(event: Event): Promise<Response> {
   const resp = await fetch('https://dash.swarthmore.edu/dining_json')
   const rawMenu = ((await resp.json()) as any).sharples as RawMeal[]
   const menu = rawMenu
@@ -67,6 +70,22 @@ export async function handleRequest(request: Request): Promise<Response> {
   )
 }
 
+const withCache: Middleware = (handler) => async (event) => {
+  const cache = caches.default
+  const cacheUrl = new URL(event.request.url)
+  const cacheKey = new Request(cacheUrl.toString(), event.request)
+
+  let response = await caches.default.match(cacheKey)
+  if (!response) {
+    response = await handler(event)
+    response = new Response(response.body, response)
+    response.headers.append('Cache-Control', 's-maxage=300')
+    event.waitUntil(cache.put(cacheKey, response.clone()))
+  }
+
+  return response
+}
+
 addEventListener('fetch', (event) => {
-  event.respondWith(handleRequest(event.request))
+  event.respondWith(withCache(handleRequest)(event))
 })
