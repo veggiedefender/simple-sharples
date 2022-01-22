@@ -15,7 +15,7 @@ type RawMeal = {
 type Meal = {
   title: string
   short_time: string
-  items: string[]
+  items: string
 }
 
 type Handler = (event: FetchEvent) => Promise<Response>
@@ -46,26 +46,22 @@ function parseMeal(meal: RawMeal): Meal {
   return {
     title: meal.title,
     short_time: `${startdate.toFormat('h:ss')} to ${enddate.toFormat('h:ss')}`,
-    items: meal.description.split(/<\s*\/?\s*br\s*\/?\s*>/).map((item) =>
-      decode(item.replace(/<\/?[^>]+(>|$)/g, '')) // holy shit
-        .trim()
-        .replace(/::(.*?)::/g, function (dietary) {
-          switch (dietary) {
-            case '::vegan::':
-              return '(v)'
-            case '::vegetarian::':
-              return '(vg)'
-            case '::kosher::':
-              return '(k)'
-            case '::halal::':
-              return '(h)'
-            case '::gluten-free::':
-              return '(gf)'
-            default:
-              return ''
-          }
-        }),
-    ),
+    items: meal.description.replace(/::(.*?)::/g, function (dietary) {
+      switch (dietary) {
+        case '::vegan::':
+          return '(v)'
+        case '::vegetarian::':
+          return '(vg)'
+        case '::kosher::':
+          return '(k)'
+        case '::halal::':
+          return '(h)'
+        case '::gluten-free::':
+          return '(gf)'
+        default:
+          return ''
+      }
+    }),
   }
 }
 
