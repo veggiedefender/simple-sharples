@@ -1,5 +1,4 @@
-import { format } from 'date-fns'
-import { utcToZonedTime } from 'date-fns-tz'
+import { DateTime, Settings } from 'luxon'
 import { decode } from 'html-entities'
 import Mustache from 'mustache'
 
@@ -10,9 +9,7 @@ type RawMeal = {
   title: string
   startdate: string
   enddate: string
-  short_time: string
   description: string
-  html_description: string
 }
 
 type Meal = {
@@ -24,14 +21,35 @@ type Meal = {
 type Handler = (event: FetchEvent) => Promise<Response>
 type Middleware = (handler: Handler) => Handler
 
+Settings.defaultZone = 'America/New_York'
+
+const menuQuery = `query menu($timeMin: String, $timeMax: String) {
+  result: googlecalfeed(
+    calendarId: "jclttimvq42gicrv1vkl0cpmoc@group.calendar.google.com",
+    timeMin: $timeMin,
+    timeMax: $timeMax,
+    order: ASC
+  ) {
+    data {
+      title
+      startdate
+      enddate
+      description
+    }
+  }
+}`
+
 function parseMeal(meal: RawMeal): Meal {
+  const startdate = DateTime.fromISO(meal.startdate)
+  const enddate = DateTime.fromISO(meal.enddate)
+
   return {
     title: meal.title,
-    short_time: meal.short_time,
-    items: decode(meal.description)
-      .split(';')
-      .map((item) =>
-        item.trim().replace(/::(.*?)::/g, function (dietary) {
+    short_time: `${startdate.toFormat('h:ss')} to ${enddate.toFormat('h:ss')}`,
+    items: meal.description.split(/<\s*\/?\s*br\s*\/?\s*>/).map((item) =>
+      decode(item.replace(/<\/?[^>]+(>|$)/g, '')) // holy shit
+        .trim()
+        .replace(/::(.*?)::/g, function (dietary) {
           switch (dietary) {
             case '::vegan::':
               return '(v)'
@@ -47,22 +65,33 @@ function parseMeal(meal: RawMeal): Meal {
               return ''
           }
         }),
-      ),
+    ),
   }
 }
 
 async function handleRequest(event: Event): Promise<Response> {
-  const resp = await fetch('https://dash.swarthmore.edu/dining_json')
-  const rawMenu = ((await resp.json()) as any).sharples as RawMeal[]
+  const now = DateTime.now()
+
+  const url = new URL('https://dash.swarthmore.edu/graphql')
+  url.searchParams.set('query', menuQuery)
+  url.searchParams.set('operationName', 'menu')
+  url.searchParams.set(
+    'variables',
+    JSON.stringify({
+      timeMin: now.startOf('day').toISO(),
+      timeMax: now.endOf('day').toISO(),
+    }),
+  )
+
+  const rsp = (await (await fetch(url.toString())).json()) as any
+  const rawMenu = rsp.data.result.data as RawMeal[]
   const menu = rawMenu
     .map(parseMeal)
     .filter((m) => ['Lunch', 'Dinner'].includes(m.title))
 
-  const now = utcToZonedTime(new Date(), 'America/New_York')
-
   return new Response(
     Mustache.render(indexPage, {
-      date: format(now, 'MMM d'),
+      date: now.toFormat('MMM d'),
       meals: menu,
     }),
     {
