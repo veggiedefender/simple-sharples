@@ -4,6 +4,7 @@ import { decode } from 'html-entities'
 import Mustache from 'mustache'
 
 import indexPage from './index.html'
+import errorPage from './error.html'
 
 type RawMeal = {
   title: string
@@ -20,8 +21,8 @@ type Meal = {
   items: string[]
 }
 
-type Handler = (event: Event) => Promise<Response>
-type Middleware = (handler: Handler) => (event: FetchEvent) => Promise<Response>
+type Handler = (event: FetchEvent) => Promise<Response>
+type Middleware = (handler: Handler) => Handler
 
 function parseMeal(meal: RawMeal): Meal {
   return {
@@ -78,14 +79,28 @@ const withCache: Middleware = (handler) => async (event) => {
   let response = await caches.default.match(cacheKey)
   if (!response) {
     response = await handler(event)
-    response = new Response(response.body, response)
-    response.headers.append('Cache-Control', 's-maxage=300')
-    event.waitUntil(cache.put(cacheKey, response.clone()))
+
+    if (response.status === 200) {
+      response = new Response(response.body, response)
+      response.headers.append('Cache-Control', 's-maxage=300')
+      event.waitUntil(cache.put(cacheKey, response.clone()))
+    }
   }
 
   return response
 }
 
+const withTry: Middleware = (handler) => async (event) => {
+  try {
+    return await handler(event)
+  } catch (error) {
+    return new Response(errorPage, {
+      headers: { 'content-type': 'text/html' },
+      status: 500,
+    })
+  }
+}
+
 addEventListener('fetch', (event) => {
-  event.respondWith(withCache(handleRequest)(event))
+  event.respondWith(withCache(withTry(handleRequest))(event))
 })
