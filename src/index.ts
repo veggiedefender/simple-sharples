@@ -45,7 +45,7 @@ function parseMeal(meal: RawMeal): Meal {
 
   return {
     title: meal.title,
-    short_time: `${startdate.toFormat('h:ss')} to ${enddate.toFormat('h:ss')}`,
+    short_time: `${startdate.toFormat('h:mm')} to ${enddate.toFormat('h:mm')}`,
     // split on <br> and newlines
     items: meal.description.split(/(?:<\s*\/?\s*br\s*\/?\s*>)|\n/).map((item) =>
       decode(item.replace(/<\/?[^>]+(>|$)/g, '')) // holy shit (remove html tags)
