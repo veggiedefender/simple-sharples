@@ -46,8 +46,9 @@ function parseMeal(meal: RawMeal): Meal {
   return {
     title: meal.title,
     short_time: `${startdate.toFormat('h:ss')} to ${enddate.toFormat('h:ss')}`,
-    items: meal.description.split(/<\s*\/?\s*br\s*\/?\s*>/).map((item) =>
-      decode(item.replace(/<\/?[^>]+(>|$)/g, '')) // holy shit
+    // split on <br> and newlines
+    items: meal.description.split(/(?:<\s*\/?\s*br\s*\/?\s*>)|\n/).map((item) =>
+      decode(item.replace(/<\/?[^>]+(>|$)/g, '')) // holy shit (remove html tags)
         .trim()
         .replace(/::(.*?)::/g, function (dietary) {
           switch (dietary) {
@@ -87,7 +88,7 @@ async function handleRequest(event: Event): Promise<Response> {
   const rawMenu = rsp.data.result.data as RawMeal[]
   const menu = rawMenu
     .map(parseMeal)
-    .filter((m) => ['Lunch', 'Dinner'].includes(m.title))
+    .filter((m) => ['Brunch', 'Lunch', 'Dinner'].includes(m.title))
 
   return new Response(
     Mustache.render(indexPage, {
