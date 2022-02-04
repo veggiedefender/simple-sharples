@@ -47,26 +47,29 @@ function parseMeal(meal: RawMeal): Meal {
     title: meal.title,
     short_time: `${startdate.toFormat('h:mm')} to ${enddate.toFormat('h:mm')}`,
     // split on <br> and newlines
-    items: meal.description.split(/(?:<\s*\/?\s*br\s*\/?\s*>)|\n/).map((item) =>
-      decode(item.replace(/<\/?[^>]+(>|$)/g, '')) // holy shit (remove html tags)
-        .trim()
-        .replace(/::(.*?)::/g, function (dietary) {
-          switch (dietary) {
-            case '::vegan::':
-              return '(v)'
-            case '::vegetarian::':
-              return '(vg)'
-            case '::kosher::':
-              return '(k)'
-            case '::halal::':
-              return '(h)'
-            case '::gluten-free::':
-              return '(gf)'
-            default:
-              return ''
-          }
-        }),
-    ),
+    items: meal.description
+      .split(/<\s*\/?\s*(?:(?:br)|(?:li))\s*\/?\s*>/)
+      .map((item) =>
+        decode(item.replace(/<\/?[^>]+(>|$)/g, '')) // holy shit (remove html tags)
+          .trim()
+          .replace(/::(.*?)::/g, function (dietary) {
+            switch (dietary) {
+              case '::vegan::':
+                return '(v)'
+              case '::vegetarian::':
+                return '(vg)'
+              case '::kosher::':
+                return '(k)'
+              case '::halal::':
+                return '(h)'
+              case '::gluten-free::':
+                return '(gf)'
+              default:
+                return ''
+            }
+          }),
+      )
+      .filter((m) => !!m),
   }
 }
 
