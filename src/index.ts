@@ -14,8 +14,16 @@ type RawMeal = {
 
 type Meal = {
   title: string
+  startdate: DateTime
+  enddate: DateTime
   short_time: string
+  short_date: string
   items: string[]
+}
+
+type Day = {
+  short_date: string
+  meals: Meal[]
 }
 
 type Handler = (event: FetchEvent) => Promise<Response>
@@ -23,11 +31,11 @@ type Middleware = (handler: Handler) => Handler
 
 Settings.defaultZone = 'America/New_York'
 
-const menuQuery = `query menu($timeMin: String, $timeMax: String) {
-  result: googlecalfeed(
+const menuQuery = `query menu($todayStart: String, $todayEnd: String, $upcomingEnd: String) {
+  today: googlecalfeed(
     calendarId: "jclttimvq42gicrv1vkl0cpmoc@group.calendar.google.com",
-    timeMin: $timeMin,
-    timeMax: $timeMax,
+    timeMin: $todayStart,
+    timeMax: $todayEnd,
     order: ASC
   ) {
     data {
@@ -37,7 +45,21 @@ const menuQuery = `query menu($timeMin: String, $timeMax: String) {
       description
     }
   }
-}`
+  upcoming: googlecalfeed(
+    calendarId: "jclttimvq42gicrv1vkl0cpmoc@group.calendar.google.com",
+    timeMin: $todayEnd,
+    timeMax: $upcomingEnd,
+    order: ASC
+  ) {
+    data {
+      title
+      startdate
+      enddate
+      description
+    }
+  }
+}
+`
 
 function parseMeal(meal: RawMeal): Meal {
   const startdate = DateTime.fromISO(meal.startdate)
@@ -45,7 +67,10 @@ function parseMeal(meal: RawMeal): Meal {
 
   return {
     title: meal.title,
+    startdate,
+    enddate,
     short_time: `${startdate.toFormat('h:mm')} to ${enddate.toFormat('h:mm')}`,
+    short_date: startdate.toFormat('ccc M/d'),
     // split on <br> and newlines
     items: meal.description
       .split(/<\s*\/?\s*(?:(?:br)|(?:li))\s*\/?\s*>/)
@@ -73,6 +98,27 @@ function parseMeal(meal: RawMeal): Meal {
   }
 }
 
+function parseAndFilterMeals(rawMeals: RawMeal[]): Meal[] {
+  return rawMeals
+    .map(parseMeal)
+    .filter((m) => ['Brunch', 'Lunch', 'Dinner'].includes(m.title))
+    .filter((m) => m.items.length > 0)
+}
+
+function groupMealsByDay(meals: Meal[]) {
+  const days: Record<string, Day> = {}
+  for (const meal of meals) {
+    if (!days[meal.short_date]) {
+      days[meal.short_date] = {
+        short_date: meal.short_date,
+        meals: [],
+      }
+    }
+    days[meal.short_date].meals.push(meal)
+  }
+  return Object.values(days)
+}
+
 async function handleRequest(event: Event): Promise<Response> {
   const now = DateTime.now()
 
@@ -82,21 +128,21 @@ async function handleRequest(event: Event): Promise<Response> {
   url.searchParams.set(
     'variables',
     JSON.stringify({
-      timeMin: now.startOf('day').toISO(),
-      timeMax: now.endOf('day').toISO(),
+      todayStart: now.startOf('day').toISO(),
+      todayEnd: now.endOf('day').toISO(),
+      upcomingEnd: now.plus({ days: 7 }).endOf('day').toISO(),
     }),
   )
 
   const rsp = (await (await fetch(url.toString())).json()) as any
-  const rawMenu = rsp.data.result.data as RawMeal[]
-  const menu = rawMenu
-    .map(parseMeal)
-    .filter((m) => ['Brunch', 'Lunch', 'Dinner'].includes(m.title))
+  const today = parseAndFilterMeals(rsp.data.today.data)
+  const upcoming = groupMealsByDay(parseAndFilterMeals(rsp.data.upcoming.data))
 
   return new Response(
     Mustache.render(indexPage, {
       date: now.toFormat('MMM d'),
-      meals: menu,
+      today,
+      upcoming,
     }),
     {
       headers: { 'content-type': 'text/html' },
@@ -124,14 +170,14 @@ const withCache: Middleware = (handler) => async (event) => {
 }
 
 const withTry: Middleware = (handler) => async (event) => {
-  try {
-    return await handler(event)
-  } catch (error) {
-    return new Response(errorPage, {
-      headers: { 'content-type': 'text/html' },
-      status: 500,
-    })
-  }
+  // try {
+  return await handler(event)
+  // } catch (error) {
+  //   return new Response(errorPage, {
+  //     headers: { 'content-type': 'text/html' },
+  //     status: 500,
+  //   })
+  // }
 }
 
 addEventListener('fetch', (event) => {

@@ -8,14 +8,40 @@
 </head>
 <body>
   <h1>Sharples {{date}}</h1>
-  {{#meals}}
+  {{#today}}
   <h2>{{title}} ({{short_time}})</h2>
   <ul>
     {{#items}}
     <li>{{.}}</li>
     {{/items}}
   </ul>
-  {{/meals}}
+  {{/today}}
+
+  <details>
+    <summary>Next couple of days</summary>
+    <table border="1">
+      <tr>
+        <th>Date</th>
+        <th>Lunch</th>
+        <th>Dinner</th>
+      </tr>
+      {{#upcoming}}
+      <tr>
+        <td>{{short_date}}</td>
+        {{#meals}}
+        <td>
+          <ul>
+          {{#items}}
+          <li>{{.}}</li>
+          {{/items}}
+          </ul>
+        </td>
+        {{/meals}}
+      </tr>
+      {{/upcoming}}
+    </table>
+  </details>
+
   <p>more info on <a href="https://dash.swarthmore.edu/">the dash</a>.</p>
 </body>
 </html>
