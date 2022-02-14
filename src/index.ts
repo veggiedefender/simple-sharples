@@ -58,8 +58,25 @@ const menuQuery = `query menu($todayStart: String, $todayEnd: String, $upcomingE
       description
     }
   }
+  essies: googlecalfeed(
+    calendarId: "r3r3af5a1gvf61ffe47b8i17d8@group.calendar.google.com",
+    timeMin: $todayStart,
+    timeMax: $todayEnd,
+    order: ASC
+  ) {
+    data {
+      title
+      startdate
+      enddate
+      description
+    }
+  }
 }
 `
+
+function stripHtmlTags(s: string): string {
+  return s.replace(/<\/?[^>]+(>|$)/g, '')
+}
 
 function parseMeal(meal: RawMeal): Meal {
   const startdate = DateTime.fromISO(meal.startdate)
@@ -75,7 +92,7 @@ function parseMeal(meal: RawMeal): Meal {
     items: meal.description
       .split(/<\s*\/?\s*(?:(?:br)|(?:li))\s*\/?\s*>/)
       .map((item) =>
-        decode(item.replace(/<\/?[^>]+(>|$)/g, '')) // holy shit (remove html tags)
+        decode(stripHtmlTags(item))
           .trim()
           .replace(/::(.*?)::/g, function (dietary) {
             switch (dietary) {
@@ -119,6 +136,24 @@ function groupMealsByDay(meals: Meal[]) {
   return Object.values(days)
 }
 
+function parseEssies(meals: RawMeal[]): string | undefined {
+  if (!meals[0]) {
+    return
+  }
+
+  const description = meals[0].description
+  const special = description
+    .split(/<\s*b\s*>/)
+    .filter((line) => line.toLowerCase().includes('special'))[0]
+
+  if (!special) {
+    return
+  }
+
+  const food = decode(special).split(/special/i)[1] || ''
+  return stripHtmlTags(food).trim()
+}
+
 async function handleRequest(event: Event): Promise<Response> {
   const now = DateTime.now()
 
@@ -137,12 +172,14 @@ async function handleRequest(event: Event): Promise<Response> {
   const rsp = (await (await fetch(url.toString())).json()) as any
   const today = parseAndFilterMeals(rsp.data.today.data)
   const upcoming = groupMealsByDay(parseAndFilterMeals(rsp.data.upcoming.data))
+  const essies = parseEssies(rsp.data.essies.data)
 
   return new Response(
     Mustache.render(indexPage, {
       date: now.toFormat('MMM d'),
       today,
       upcoming,
+      essies,
     }),
     {
       headers: { 'content-type': 'text/html' },
