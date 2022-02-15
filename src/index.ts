@@ -207,14 +207,15 @@ const withCache: Middleware = (handler) => async (event) => {
 }
 
 const withTry: Middleware = (handler) => async (event) => {
-  // try {
-  return await handler(event)
-  // } catch (error) {
-  //   return new Response(errorPage, {
-  //     headers: { 'content-type': 'text/html' },
-  //     status: 500,
-  //   })
-  // }
+  try {
+    return await handler(event)
+  } catch (error) {
+    console.log(error)
+    return new Response(errorPage, {
+      headers: { 'content-type': 'text/html' },
+      status: 500,
+    })
+  }
 }
 
 addEventListener('fetch', (event) => {
