@@ -23,7 +23,8 @@ type Meal = {
 
 type Day = {
   short_date: string
-  meals: Meal[]
+  lunch?: Meal
+  dinner?: Meal
 }
 
 type Handler = (event: FetchEvent) => Promise<Response>
@@ -122,16 +123,23 @@ function parseAndFilterMeals(rawMeals: RawMeal[]): Meal[] {
     .filter((m) => m.items.length > 0)
 }
 
-function groupMealsByDay(meals: Meal[]) {
+function groupMealsByDay(meals: Meal[]): Day[] {
   const days: Record<string, Day> = {}
   for (const meal of meals) {
     if (!days[meal.short_date]) {
       days[meal.short_date] = {
-        short_date: meal.short_date,
-        meals: [],
+        short_date: meal.short_date
       }
     }
-    days[meal.short_date].meals.push(meal)
+
+    switch (meal.title) {
+      case 'Brunch':
+      case 'Lunch':
+        days[meal.short_date].lunch = meal
+        break
+      case 'Dinner':
+        days[meal.short_date].dinner = meal
+    }
   }
   return Object.values(days)
 }

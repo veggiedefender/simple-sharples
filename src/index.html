@@ -30,7 +30,7 @@
       {{#upcoming}}
       <tr>
         <td>{{short_date}}</td>
-        {{#meals}}
+        {{#lunch}}
         <td>
           <ul>
           {{#items}}
@@ -38,7 +38,22 @@
           {{/items}}
           </ul>
         </td>
-        {{/meals}}
+        {{/lunch}}
+        {{^lunch}}
+        <td></td>
+        {{/lunch}}
+        {{#dinner}}
+        <td>
+          <ul>
+          {{#items}}
+          <li>{{.}}</li>
+          {{/items}}
+          </ul>
+        </td>
+        {{/dinner}}
+        {{^dinner}}
+        <td></td>
+        {{/dinner}}
       </tr>
       {{/upcoming}}
     </table>
