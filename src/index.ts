@@ -33,8 +33,8 @@ type Middleware = (handler: Handler) => Handler
 Settings.defaultZone = 'America/New_York'
 
 const menuQuery = `query menu($todayStart: String, $todayEnd: String, $upcomingEnd: String) {
-  today: googlecalfeed(
-    calendarId: "jclttimvq42gicrv1vkl0cpmoc@group.calendar.google.com",
+  today: cbordnetmenufeed(
+    calendarId: "DCC",
     timeMin: $todayStart,
     timeMax: $todayEnd,
     order: ASC
@@ -46,8 +46,8 @@ const menuQuery = `query menu($todayStart: String, $todayEnd: String, $upcomingE
       description
     }
   }
-  upcoming: googlecalfeed(
-    calendarId: "jclttimvq42gicrv1vkl0cpmoc@group.calendar.google.com",
+  upcoming: cbordnetmenufeed(
+    calendarId: "DCC",
     timeMin: $todayEnd,
     timeMax: $upcomingEnd,
     order: ASC
@@ -59,7 +59,7 @@ const menuQuery = `query menu($todayStart: String, $todayEnd: String, $upcomingE
       description
     }
   }
-  essies: googlecalfeed(
+  essies: cbordnetmenufeed(
     calendarId: "r3r3af5a1gvf61ffe47b8i17d8@group.calendar.google.com",
     timeMin: $todayStart,
     timeMax: $todayEnd,
@@ -128,7 +128,7 @@ function groupMealsByDay(meals: Meal[]): Day[] {
   for (const meal of meals) {
     if (!days[meal.short_date]) {
       days[meal.short_date] = {
-        short_date: meal.short_date
+        short_date: meal.short_date,
       }
     }
 
@@ -178,6 +178,9 @@ async function handleRequest(event: Event): Promise<Response> {
   )
 
   const rsp = (await (await fetch(url.toString())).json()) as any
+
+  console.log(JSON.stringify(rsp))
+
   const today = parseAndFilterMeals(rsp.data.today.data)
   const upcoming = groupMealsByDay(parseAndFilterMeals(rsp.data.upcoming.data))
   const essies = parseEssies(rsp.data.essies.data)
